@@ -17,6 +17,8 @@ function getTileKey(x, y) {
     return tileKey;
 }
 
+let drawing = false;
+
 // Pixel per zoom
 const zoomStep = 5;
 // Minimum / Maximum zoom level
@@ -254,9 +256,9 @@ window.addEventListener("keydown", (e) => {
     }
 })
 
-canvas.addEventListener("click", (e) => {
-    const clickX = e.clientX - offsetX;
-    const clickY = e.clientY - offsetY;
+function changeTileClicked(event) {
+    const clickX = event.clientX - offsetX;
+    const clickY = event.clientY - offsetY;
     const tileX = Math.floor(clickX / tileWidth) + gridX;
     const tileY = Math.floor(clickY / tileWidth) + gridY;
     const key = getTileKey(tileX, tileY);
@@ -272,6 +274,30 @@ canvas.addEventListener("click", (e) => {
     }
     grid[key] = newTile;
     displayTile(tileX, tileY);
+}
+
+canvas.addEventListener("mousedown", (e) => {
+    drawing = true;
+})
+
+canvas.addEventListener("mousemove", (e) => {
+    if (drawing) {
+        const clickX = event.clientX - offsetX;
+        const clickY = event.clientY - offsetY;
+        const tileX = Math.floor(clickX / tileWidth) + gridX;
+        const tileY = Math.floor(clickY / tileWidth) + gridY;
+        const key = getTileKey(tileX, tileY);
+        const tile = grid[key];
+        // Change tile only if it is dead
+        if (tile == undefined || tile.state != 1) {
+            changeTileClicked(e)
+        }
+    }
+})
+
+canvas.addEventListener("mouseup", (e) => {
+    changeTileClicked(e)
+    drawing = false;
 })
 
 function zoomIn() {
