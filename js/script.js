@@ -17,9 +17,15 @@ function getTileKey(x, y) {
     return tileKey;
 }
 
-const tileWidth = 50;
-const offsetX = (canvas.width - (Math.floor(canvas.width / tileWidth) * tileWidth)) / 2;
-const offsetY = (canvas.height - (Math.floor(canvas.height / tileWidth) * tileWidth)) / 2;
+// Pixel per zoom
+const zoomStep = 5;
+// Minimum / Maximum zoom level
+const minTileWidth = 10;
+const maxTileWidth = 100;
+
+let tileWidth = 50;
+let offsetX = (canvas.width - (Math.floor(canvas.width / tileWidth) * tileWidth)) / 2;
+let offsetY = (canvas.height - (Math.floor(canvas.height / tileWidth) * tileWidth)) / 2;
 // In grid there is 3 types of tile :
 //      Alive tile
 //          A normal alive tile
@@ -31,7 +37,7 @@ const offsetY = (canvas.height - (Math.floor(canvas.height / tileWidth) * tileWi
 // If a tile becomes alive it's object is created and stored in the grid
 // Once it died it's objetc state becomes dead but the tile isn't removed from the grid
 //      Until the generation hasn't ended. Ths is due to the generation system. We need to know
-//      The old state of a tile to update the other tiles (only during 1 generaton) 
+//      The old state of a tile to update the other tiles (only during 1 generaton)
 const grid = [];
 let paused = false;
 let gridX = 0;
@@ -40,14 +46,14 @@ let gridY = 0;
 // Position of the neighbors of (x, y) tile
 // Relative to (x, y) tile
 const neighborsRelativePositions = [
-    [-tileWidth, -tileWidth],  // TOP LEFT
-    [0, -tileWidth],           // TOP
-    [tileWidth, -tileWidth],   // TOP RIGHT
-    [-tileWidth, 0],           // LEFT
-    [tileWidth, 0],            // RIGHT
-    [-tileWidth, tileWidth],   // BOTTOM LEFT
-    [0, tileWidth],            // BOTTOM
-    [tileWidth, tileWidth]     // BOTTOM RIGHT
+    [-1, -1],  // TOP LEFT
+    [0, -1],           // TOP
+    [1, -1],   // TOP RIGHT
+    [-1, 0],           // LEFT
+    [1, 0],            // RIGHT
+    [-1, 1],   // BOTTOM LEFT
+    [0, 1],            // BOTTOM
+    [1, 1]     // BOTTOM RIGHT
 ];
 
 function countElements(arr, targetElm) {
@@ -114,7 +120,7 @@ function updateTile(generationId, updateDepth, x, y) {
             nextTile = new Tile(1, generationId);
         }
     } else {
-        // Tile dead 
+        // Tile dead
         // Create dead cell representation
         // Only if cell was alive before
         if (tileState == 1) {
@@ -153,11 +159,11 @@ function displayTile(tileX, tileY) {
     const tileKey = getTileKey(tileX, tileY);
     const tile = grid[tileKey];
     if (tile.state == 1) {
-        ctx.fillStyle = "black";  
+        ctx.fillStyle = "black";
     }else {
         ctx.fillStyle = "white";
     }
-    ctx.fillRect(tileX - gridX + offsetX, tileY - gridY + offsetY, tileWidth - 2, tileWidth - 2)
+    ctx.fillRect((tileX - gridX) * tileWidth + offsetX, (tileY - gridY) * tileWidth + offsetY, tileWidth - 2, tileWidth - 2)
 }
 
 function displayTiles() {
@@ -188,7 +194,7 @@ function displayGrid() {
         ctx.moveTo(0, y)
         ctx.lineTo(x, y)
         ctx.stroke()
-    }   
+    }
 }
 
 let generationId = 0;
@@ -222,25 +228,25 @@ window.addEventListener("keydown", (e) => {
             paused = paused ? false : true;
             break;
         case "ArrowUp":
-            gridY -= tileWidth;
+            gridY -= 1;
             clearCanvas()
             displayGrid()
             displayTiles()
             break;
         case "ArrowLeft":
-            gridX -= tileWidth;
+            gridX -= 1;
             clearCanvas()
             displayGrid()
             displayTiles()
             break;
         case "ArrowDown":
-            gridY += tileWidth;
+            gridY += 1;
             clearCanvas()
             displayGrid()
             displayTiles()
             break;
         case "ArrowRight":
-            gridX += tileWidth;
+            gridX += 1;
             clearCanvas()
             displayGrid()
             displayTiles()
@@ -251,8 +257,8 @@ window.addEventListener("keydown", (e) => {
 canvas.addEventListener("click", (e) => {
     const clickX = e.clientX - offsetX;
     const clickY = e.clientY - offsetY;
-    const tileX = Math.floor(clickX / tileWidth) * tileWidth + gridX;
-    const tileY = Math.floor(clickY / tileWidth) * tileWidth + gridY;
+    const tileX = Math.floor(clickX / tileWidth) + gridX;
+    const tileY = Math.floor(clickY / tileWidth) + gridY;
     const key = getTileKey(tileX, tileY);
     const tile = grid[key];
     let newTile = undefined;
@@ -266,4 +272,44 @@ canvas.addEventListener("click", (e) => {
     }
     grid[key] = newTile;
     displayTile(tileX, tileY);
+})
+
+function zoomIn() {
+    tileWidth = tileWidth < maxTileWidth ? tileWidth + zoomStep : tileWidth;
+}
+
+function zoomOut() {
+    tileWidth = tileWidth > minTileWidth ? tileWidth - zoomStep : tileWidth;
+}
+
+window.addEventListener("wheel", (e) => {
+    clearCanvas()
+
+    const mouseX = e.x;
+    const mouseY = e.y;
+    const tileX = Math.floor(mouseX / tileWidth) + gridX;
+    const tileY = Math.floor(mouseY / tileWidth) + gridY;
+
+    const wheelDirection = e.wheelDelta;
+    if (wheelDirection < 0) {
+        zoomOut()
+    } else {
+        zoomIn()
+    }
+
+    // Zoom on / out on the targeted tile
+    const newTileX = Math.floor(mouseX / tileWidth) + gridX;
+    const newTileY = Math.floor(mouseY / tileWidth) + gridY;
+    const gridOffsetX = newTileX - tileX;
+    const gridOffsetY = newTileY - tileY;
+
+    gridX -= gridOffsetX;
+    gridY -= gridOffsetY;
+
+    // Update offsets depending on new tileWidth
+    offsetX = (canvas.width - (Math.floor(canvas.width / tileWidth) * tileWidth)) / 2;
+    offsetY = (canvas.height - (Math.floor(canvas.height / tileWidth) * tileWidth)) / 2;
+
+    displayTiles()
+    displayGrid()
 })
