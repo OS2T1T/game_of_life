@@ -17,7 +17,12 @@ function getTileKey(x, y) {
     return tileKey;
 }
 
+let fps = 0;
+
 let aliveTiles = 0;
+
+let selectionX = undefined;
+let selectionY = undefined;
 
 let drawing = false;
 let penType = 1;
@@ -182,6 +187,19 @@ function displayTiles() {
     }
 }
 
+function displayFps() {
+    const fpsText = fps;
+    const textWidth = ctx.measureText(fpsText).width;
+    // Box
+    ctx.fillStyle = "white";
+    ctx.fillRect(canvas.width - textWidth, 0, textWidth, 35)
+    // Text
+    ctx.font = "25px monospace";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "black";
+    ctx.fillText(fpsText, canvas.width - textWidth, 25)
+}
+
 function displayInfos() {
     const coordsText = "(X:" + gridX + "; Y:" + gridY + "; Tiles:" + aliveTiles + ")";
     // Box
@@ -192,14 +210,17 @@ function displayInfos() {
     ctx.textAlign = "left";
     ctx.fillStyle = "black";
     ctx.fillText(coordsText, 0, 25)
+    displayFps()
 }
 
 function displayGrid() {
+    drawTileSelection(selectionX, selectionY)
     // lines
     for (let i = 0; i < canvas.width / tileWidth + 1; i++) {
         const x = i * tileWidth - 1 + offsetX;
         const y = canvas.height;
-        ctx.fillStyle = "black";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
         ctx.beginPath()
         ctx.moveTo(x, 0)
         ctx.lineTo(x, y)
@@ -209,7 +230,8 @@ function displayGrid() {
     for (let j = 0; j < canvas.height / tileWidth + 1; j++) {
         const x = canvas.width;
         const y = j * tileWidth - 1 + offsetY;
-        ctx.fillStyle = "black";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
         ctx.beginPath()
         ctx.moveTo(0, y)
         ctx.lineTo(x, y)
@@ -218,8 +240,13 @@ function displayGrid() {
     displayInfos()
 }
 
+let lastUpdateTimestamp = Date.now();
 let generationId = 0;
 function update() {
+    // Update fps
+    fps = Date.now() - lastUpdateTimestamp;
+    lastUpdateTimestamp = Date.now();
+    // Update cells and grid if unpaused
     if (!paused) {
         clearCanvas()
         for (let tileKey of Object.keys(grid)) {
@@ -244,8 +271,13 @@ function update() {
 setInterval(update, 100)
 
 function updateMovement() {
+    // Update selection coords
+    selectionX -= - movement.r + movement.l;
+    selectionY += movement.d - movement.u;
+    // Update grid coords
     gridX += movement.r - movement.l;
     gridY += movement.d - movement.u;
+    // Display
     clearCanvas()
     displayTiles()
     displayGrid()
@@ -305,7 +337,6 @@ function changeTileClicked(event) {
         newTile = new Tile(penType, generationId - 1);
         grid[key] = newTile;
         displayTile(tileX, tileY);
-        displayGrid()
         if (penType == 1) {
             aliveTiles++;
         } else {
@@ -329,12 +360,20 @@ canvas.addEventListener("mousedown", (e) => {
     drawing = true;
 })
 
+function drawTileSelection(tileX, tileY) {
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.strokeRect((tileX - gridX) * tileWidth + offsetX, (tileY - gridY) * tileWidth + offsetY, tileWidth - 2, tileWidth - 2)
+}
+
 canvas.addEventListener("mousemove", (e) => {
+    const clickX = event.clientX - offsetX;
+    const clickY = event.clientY - offsetY;
+    const tileX = Math.floor(clickX / tileWidth) + gridX;
+    const tileY = Math.floor(clickY / tileWidth) + gridY;
+    selectionX = tileX;
+    selectionY = tileY;
     if (drawing) {
-        const clickX = event.clientX - offsetX;
-        const clickY = event.clientY - offsetY;
-        const tileX = Math.floor(clickX / tileWidth) + gridX;
-        const tileY = Math.floor(clickY / tileWidth) + gridY;
         const key = getTileKey(tileX, tileY);
         const tile = grid[key];
         changeTileClicked(e)
