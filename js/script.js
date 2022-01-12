@@ -18,6 +18,8 @@ function getTileKey(x, y) {
 }
 
 let drawing = false;
+let penType = 1;
+let movement = {x: 0, y: 0};
 
 // Pixel per zoom
 const zoomStep = 5;
@@ -224,34 +226,48 @@ function update() {
 }
 setInterval(update, 100)
 
+function updateMovement() {
+    gridX += movement.x;
+    gridY += movement.y;
+    clearCanvas()
+    displayGrid()
+    displayTiles()
+}
+setInterval(updateMovement, 1000 / 50)
+
 window.addEventListener("keydown", (e) => {
     switch (e.code) {
         case "Space":
             paused = paused ? false : true;
             break;
         case "ArrowUp":
-            gridY -= 1;
-            clearCanvas()
-            displayGrid()
-            displayTiles()
+            movement.y = -1;
             break;
         case "ArrowLeft":
-            gridX -= 1;
-            clearCanvas()
-            displayGrid()
-            displayTiles()
+            movement.x = -1;
             break;
         case "ArrowDown":
-            gridY += 1;
-            clearCanvas()
-            displayGrid()
-            displayTiles()
+            movement.y = 1;
             break;
         case "ArrowRight":
-            gridX += 1;
-            clearCanvas()
-            displayGrid()
-            displayTiles()
+            movement.x = 1;
+            break;
+    }
+})
+
+window.addEventListener("keyup", (e) => {
+    switch (e.code) {
+        case "ArrowUp":
+            movement.y = 0;
+            break;
+        case "ArrowLeft":
+            movement.x = 0;
+            break;
+        case "ArrowDown":
+            movement.y = 0;
+            break;
+        case "ArrowRight":
+            movement.x = 0;
             break;
     }
 })
@@ -263,20 +279,30 @@ function changeTileClicked(event) {
     const tileY = Math.floor(clickY / tileWidth) + gridY;
     const key = getTileKey(tileX, tileY);
     const tile = grid[key];
-    let newTile = undefined;
-    // generation of the new tile must not be equal to the current generation
-    // Otherwise the tile state will not count corretly in the current generation
-    if (tile != undefined) {
-        const newState = Number(!tile.state);
-        newTile = new Tile(newState, generationId - 1);
-    } else {
-        newTile = new Tile(1, generationId - 1);
+    const tileState = tile == undefined ? 0 : tile.state;
+    // Change tiles that are the opposite of penType
+    if (tileState == !penType) {
+        let newTile = undefined;
+        // generation of the new tile must not be equal to the current generation
+        // Otherwise the tile state will not count corretly in the current generation
+        newTile = new Tile(penType, generationId - 1);
+        grid[key] = newTile;
+        displayTile(tileX, tileY);
     }
-    grid[key] = newTile;
-    displayTile(tileX, tileY);
 }
 
 canvas.addEventListener("mousedown", (e) => {
+    const clickX = event.clientX - offsetX;
+    const clickY = event.clientY - offsetY;
+    const tileX = Math.floor(clickX / tileWidth) + gridX;
+    const tileY = Math.floor(clickY / tileWidth) + gridY;
+    const key = getTileKey(tileX, tileY);
+    const tile = grid[key];
+    if (tile == undefined || tile.state == 0) {
+        penType = 1;
+    } else {
+        penType = 0;
+    }
     drawing = true;
 })
 
@@ -288,10 +314,7 @@ canvas.addEventListener("mousemove", (e) => {
         const tileY = Math.floor(clickY / tileWidth) + gridY;
         const key = getTileKey(tileX, tileY);
         const tile = grid[key];
-        // Change tile only if it is dead
-        if (tile == undefined || tile.state != 1) {
-            changeTileClicked(e)
-        }
+        changeTileClicked(e)
     }
 })
 
