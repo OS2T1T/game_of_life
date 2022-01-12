@@ -17,12 +17,14 @@ function getTileKey(x, y) {
     return tileKey;
 }
 
+let aliveTiles = 0;
+
 let drawing = false;
 let penType = 1;
-let movement = {x: 0, y: 0};
+let movement = {u: 0, r: 0, d: 0, l: 0};
 
 // Pixel per zoom
-const zoomStep = 5;
+const zoomSteps = 5;
 // Minimum / Maximum zoom level
 const minTileWidth = 10;
 const maxTileWidth = 100;
@@ -121,6 +123,7 @@ function updateTile(generationId, updateDepth, x, y) {
         // Tile alive
         // Don't update the tile unless the tile state changed
         if (tileState == 0) {
+            aliveTiles++;
             nextTile = new Tile(1, generationId);
         }
     } else {
@@ -128,6 +131,7 @@ function updateTile(generationId, updateDepth, x, y) {
         // Create dead cell representation
         // Only if cell was alive before
         if (tileState == 1) {
+            aliveTiles--;
             nextTile = new Tile(0, generationId);
         }
     }
@@ -178,6 +182,18 @@ function displayTiles() {
     }
 }
 
+function displayInfos() {
+    const coordsText = "(X:" + gridX + "; Y:" + gridY + "; Tiles:" + aliveTiles + ")";
+    // Box
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, ctx.measureText(coordsText).width, 35)
+    // Text
+    ctx.font = "25px monospace";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "black";
+    ctx.fillText(coordsText, 0, 25)
+}
+
 function displayGrid() {
     // lines
     for (let i = 0; i < canvas.width / tileWidth + 1; i++) {
@@ -199,13 +215,13 @@ function displayGrid() {
         ctx.lineTo(x, y)
         ctx.stroke()
     }
+    displayInfos()
 }
 
 let generationId = 0;
 function update() {
     if (!paused) {
         clearCanvas()
-        displayGrid()
         for (let tileKey of Object.keys(grid)) {
             const tileX = Number(tileKey.split(':')[0]);
             const tileY = Number(tileKey.split(':')[1]);
@@ -222,16 +238,17 @@ function update() {
             }
         }
         generationId++;
+        displayGrid()
     }
 }
 setInterval(update, 100)
 
 function updateMovement() {
-    gridX += movement.x;
-    gridY += movement.y;
+    gridX += movement.r - movement.l;
+    gridY += movement.d - movement.u;
     clearCanvas()
-    displayGrid()
     displayTiles()
+    displayGrid()
 }
 setInterval(updateMovement, 1000 / 50)
 
@@ -241,16 +258,16 @@ window.addEventListener("keydown", (e) => {
             paused = paused ? false : true;
             break;
         case "ArrowUp":
-            movement.y = -1;
+            movement.u = 1;
             break;
         case "ArrowLeft":
-            movement.x = -1;
+            movement.l = 1;
             break;
         case "ArrowDown":
-            movement.y = 1;
+            movement.d = 1;
             break;
         case "ArrowRight":
-            movement.x = 1;
+            movement.r = 1;
             break;
     }
 })
@@ -258,16 +275,16 @@ window.addEventListener("keydown", (e) => {
 window.addEventListener("keyup", (e) => {
     switch (e.code) {
         case "ArrowUp":
-            movement.y = 0;
+            movement.u = 0;
             break;
         case "ArrowLeft":
-            movement.x = 0;
+            movement.l = 0;
             break;
         case "ArrowDown":
-            movement.y = 0;
+            movement.d = 0;
             break;
         case "ArrowRight":
-            movement.x = 0;
+            movement.r = 0;
             break;
     }
 })
@@ -288,6 +305,12 @@ function changeTileClicked(event) {
         newTile = new Tile(penType, generationId - 1);
         grid[key] = newTile;
         displayTile(tileX, tileY);
+        displayGrid()
+        if (penType == 1) {
+            aliveTiles++;
+        } else {
+            aliveTiles--;
+        }
     }
 }
 
@@ -324,11 +347,11 @@ canvas.addEventListener("mouseup", (e) => {
 })
 
 function zoomIn() {
-    tileWidth = tileWidth < maxTileWidth ? tileWidth + zoomStep : tileWidth;
+    tileWidth = tileWidth < maxTileWidth ? tileWidth + zoomSteps : tileWidth;
 }
 
 function zoomOut() {
-    tileWidth = tileWidth > minTileWidth ? tileWidth - zoomStep : tileWidth;
+    tileWidth = tileWidth > minTileWidth ? tileWidth - zoomSteps : tileWidth;
 }
 
 window.addEventListener("wheel", (e) => {
